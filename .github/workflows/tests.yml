@@ -8,12 +8,30 @@ on:
             - main
     pull_request:
 
-env:
-    PYTHON_VERSION: 3.12
-
 jobs:
+    lint:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v6
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.12"
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip setuptools
+                  python -m pip install -r requirements/tests.txt
+            - name: Run linting checks
+              run: |
+                  python -m pip install flake8
+                  flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
     tests:
         runs-on: ubuntu-24.04
+        strategy:
+            fail-fast: false
+            matrix:
+                python-version: ["3.11", "3.12"]
 
         services:
             postgres:
@@ -30,24 +48,10 @@ jobs:
 
         steps:
             - uses: actions/checkout@v6
-            - name: Set up Python
+            - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v6
               with:
-                  python-version: ${{ env.PYTHON_VERSION }}
-            - name: Cache pip dependencies
-              uses: actions/cache@v4
-              with:
-                  path: ~/.cache/pip
-                  key: ${{ runner.os }}-pip-${{ hashFiles('requirements/tests.txt') }}
-                  restore-keys: |
-                      ${{ runner.os }}-pip-
-            - name: Cache Playwright browsers
-              uses: actions/cache@v4
-              with:
-                  path: ~/.cache/ms-playwright
-                  key: ${{ runner.os }}-playwright-${{ hashFiles('requirements/tests.txt') }}
-                  restore-keys: |
-                      ${{ runner.os }}-playwright-
+                  python-version: ${{ matrix.python-version }}
             - name: Install gettext
               run: sudo apt-get update && sudo apt-get install -y gettext
             - name: Install dependencies
